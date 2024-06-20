@@ -1,7 +1,7 @@
 import time
 import numpy as np
 import pandas as pd
-import classic_alg_exp.epde.interface.interface as epde_alg
+import epde.interface.interface as epde_alg
 from matplotlib import rcParams
 from pathlib import Path
 import matplotlib.pyplot as plt
@@ -86,21 +86,20 @@ if __name__ == '__main__':
     path = "data_burg"
     path_full = os.path.join(Path().absolute().parent, path, "burgers_sln_100.csv")
     df = pd.read_csv(path_full, header=None)
-    u_init= df.values
-    u_init = np.transpose(u_init)
-    dimensionality = u_init.ndim
 
     x = np.linspace(-1000, 0, 101)
     t = np.linspace(0, 1, 101)
-
+    u_init = df.values
+    u_init = np.transpose(u_init)
+    dimensionality = u_init.ndim
     boundary = 10
     grids = np.meshgrid(t, x, indexing='ij')
 
     ''' Parameters of the experiment '''
-    write_csv = False
+    write_csv = True
     print_results = True
     max_iter_number = 50
-    magnitudes = [1. * 1e-5, 1.5 * 1e-5, 2 * 1e-5, 2.5 * 1e-5, 3. * 1e-5, 3.67 * 1e-5] #
+    magnitudes = [0, 9.175e-6, 1.835e-5, 2.7525e-5, 3.67 * 1e-5]
 
     terms = [('du/dx1',), ('du/dx2', 'u'), ('u',), ('du/dx2',), ('u', 'du/dx1'), ('du/dx1', 'du/dx2'), ]
     hashed_ls = [hash_term(term) for term in terms]
@@ -110,8 +109,10 @@ if __name__ == '__main__':
     draw_not_found = []
     draw_time = []
     draw_avgmae = []
+    start_gl = time.time()
     for magnitude in magnitudes:
         title = f'dfo{magnitude}'
+
         time_ls = []
         differences_ls = []
         mean_diff_ls = []
@@ -120,7 +121,10 @@ if __name__ == '__main__':
         i = 0
         population_error = 0
         while i < max_iter_number:
-            u = u_init + np.random.normal(scale=magnitude * np.abs(u_init), size=u_init.shape)
+            if magnitude != 0:
+                u = u_init + np.random.normal(scale=magnitude * np.abs(u_init), size=u_init.shape)
+            else:
+                u = u_init
             epde_search_obj = epde_alg.EpdeSearch(use_solver=False, boundary=boundary,
                                                   dimensionality=dimensionality, coordinate_tensors=grids,)
             # epde_search_obj.set_preprocessor(default_preprocessor_type='ANN', preprocessor_kwargs={'epochs_max': 800})
@@ -160,15 +164,11 @@ if __name__ == '__main__':
             df = pd.DataFrame(data=arr, columns=['MAE', 'time', 'number_found_eq'])
             df.to_csv(os.path.join(Path().absolute().parent, "data_burg", f"{title}.csv"))
         if print_results:
-            print('\nTime for every run:')
-            for item in time_ls:
-                print(item)
-
             print()
             print(f'\nAverage time, s: {sum(time_ls) / len(time_ls):.2f}')
             if len(mean_diff_ls) != 0:
                 print(f'Average MAE per eq: {sum(mean_diff_ls) / len(mean_diff_ls):.6f}')
-                print(f'Average minimum MAE per run: {sum(differences_ls) / max_iter_number:.6f}')
+                print(f'Average minimum MAE per run: {sum(differences_ls) / (max_iter_number - num_found_eq.count(0)):.6f}')
             else:
                 print("Equation was not found in any run")
             print(f'Average # of found eq per run: {sum(num_found_eq) / max_iter_number:.2f}')
@@ -178,26 +178,28 @@ if __name__ == '__main__':
         if len(mean_diff_ls) != 0:
             draw_avgmae.append(sum(differences_ls) / (max_iter_number - num_found_eq.count(0)))
         else:
-            draw_avgmae.append(0.01)
+            draw_avgmae.append(0.08)
         draw_not_found.append(num_found_eq.count(0))
         draw_time.append(sum(time_ls) / len(time_ls))
 
+    end_gl = time.time()
+    print(f"Overall time: {end_gl-start_gl:.2f}, s.")
+    plt.title("Original")
     plt.plot(magnitudes, draw_not_found, linewidth=2, markersize=9, marker='o')
-    plt.title("SymNet")
     plt.ylabel("No. runs with not found eq.")
     plt.xlabel("Magnitude value")
     plt.grid()
     plt.show()
 
     plt.plot(magnitudes, draw_time, linewidth=2, markersize=9, marker='o')
-    plt.title("SymNet")
+    plt.title("Original")
     plt.ylabel("Time, s.")
     plt.xlabel("Magnitude value")
     plt.grid()
     plt.show()
 
     plt.plot(magnitudes, draw_avgmae, linewidth=2, markersize=9, marker='o')
-    plt.title("SymNet")
+    plt.title("Original")
     plt.ylabel("Average MAE")
     plt.xlabel("Magnitude value")
     plt.grid()

@@ -7,8 +7,8 @@ sns.set(style="whitegrid", color_codes=True)
 def plot_time(path, names, n_df):
     dfall = melt_count_time(path, names, n_df)
     lbl_y = "s"
-    # if dfall.time.max() > 150:
-    #     lbl_y = "m"
+    if dfall.time.max() > 150:
+        lbl_y = "m"
 
     ax = sns.boxplot(x=dfall['Magnitude'],
                 y=dfall['time'],

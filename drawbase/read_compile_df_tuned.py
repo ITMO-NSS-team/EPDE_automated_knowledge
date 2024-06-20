@@ -3,19 +3,20 @@ import numpy as np
 
 
 def read_csv(path, names, df_n):
-    dfo_ls, dfs_ls = [], []
+    dfo_ls, dfs_ls, dfs_tuned = [], [], []
     for name in names:
         dfo_ls.append(pd.read_csv(f'{path}dfo{name}.csv', index_col="Unnamed: 0"))
         dfs_ls.append(pd.read_csv(f'{path}dfs{name}.csv', index_col="Unnamed: 0"))
+        dfs_tuned.append(pd.read_csv(f'{path}dfs{name}_tuned.csv', index_col="Unnamed: 0"))
 
-    if df_n == 2:
-        return [dfo_ls, dfs_ls]
+    if df_n == 3:
+        return [dfo_ls, dfs_ls, dfs_tuned]
     else:
         dfp_ls = []
         for name in names:
             dfp_ls.append(pd.read_csv(f'{path}dfp{name}.csv', index_col="Unnamed: 0"))
 
-        return [dfo_ls, dfs_ls, dfp_ls]
+        return [dfo_ls, dfs_ls, dfs_tuned, dfp_ls]
 
 
 def _round_wide_range_values(df_ls: list, decimals):
@@ -44,7 +45,7 @@ def _round_values(df_lsls, decimals, wide_range=False):
         decimals_sindy = decimals[1]
 
     for i in range(len(df_lsls)):
-        if i != 2:
+        if i != 3:
             if wide_range:
                 df_maes = _round_wide_range_values(df_lsls[i], decimals_epde)
                 df_lsr.append(df_maes)
@@ -60,7 +61,43 @@ def _round_values(df_lsls, decimals, wide_range=False):
     categories = dfr.unique()
     if np.nanmin(categories) == 0.0:
         return _round_values(df_lsls, decimals, wide_range=True)
+    if len(categories) >= 25:
+        categories, df_lsr = _round_if_many(df_lsr)
+
     return categories, df_lsr
+
+
+def _round_if_many(df_lsr):
+    ls_all_mae = []
+    for i in range(len(df_lsr)):
+        for df in df_lsr[i]:
+            for j in range(len(df)):
+                for rank in range(1, 10):
+                    if rank*1e-5 + 0.5e-5 > df.loc[j] >= rank*1e-5 - 0.5e-5:
+                        df.loc[j] = rank*1e-5
+            ls_all_mae.append(df)
+    dfr = pd.concat(ls_all_mae)
+    categories = dfr.unique()
+    categories.sort()
+    return categories, df_lsr
+
+
+def _split_numbers_list(numbers_list, n_groups):
+    n_splits = min(len(numbers_list), n_groups)
+
+    ratios = [
+        (i, numbers_list[i + 1] / numbers_list[i]) for i in range(len(numbers_list) - 1)
+    ]
+    sorted_ratios = sorted(ratios, key=lambda r: r[1], reverse=True)
+
+    chosen_splits = (
+            [0]
+            + sorted([r[0] + 1 for r in sorted_ratios[: n_splits - 1]])
+            + [len(numbers_list)]
+    )
+    return [
+        numbers_list[chosen_splits[i]: chosen_splits[i + 1]]
+        for i in range(len(chosen_splits) - 1)]
 
 
 def _make_input_df(names, df_ls, decimals):

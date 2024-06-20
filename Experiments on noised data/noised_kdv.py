@@ -10,6 +10,7 @@ import traceback
 import logging
 import os
 from pathlib import Path
+import pickle
 
 
 def find_coeff_diff(res):
@@ -94,7 +95,7 @@ if __name__ == '__main__':
     path_full = os.path.join(Path().absolute().parent, "data_kdv", "KdV_sln_100.csv")
     df = pd.read_csv(path_full, header=None)
 
-    os.path.join(Path().absolute().parent, "data_kdv", "d_x_100.csv")
+    # os.path.join(Path().absolute().parent, "data_kdv", "d_x_100.csv")
     dddx = pd.read_csv(os.path.join(Path().absolute().parent, "data_kdv", "ddd_x_100.csv"), header=None)
     ddx = pd.read_csv(os.path.join(Path().absolute().parent, "data_kdv", "dd_x_100.csv"), header=None)
     dx = pd.read_csv(os.path.join(Path().absolute().parent, "data_kdv", "d_x_100.csv"), header=None)
@@ -134,9 +135,12 @@ if __name__ == '__main__':
     draw_time = []
     draw_avgmae = []
     start_gl = time.time()
-    magnitudes = [1. * 1e-3, 1. * 1e-2, 7. * 1e-2, 8. * 1e-2, 9. * 1e-2, 9.2 * 1e-2]
-    for magnitude in magnitudes:
-        title = f'dfs{magnitude}'
+    magnitudes = [0, 0.023, 0.046, 0.069, 0.092]
+    magnames = ["0", "0.023", "0.046", "0.069", "0.092"]
+    mmfs = [4.7, 4.6, 4.5, 4.5, 4.1]
+
+    for magnitude, magname, mmf in zip(magnitudes, magnames, mmfs):
+        title = f'dfs{magname}_tuned'
 
         time_ls = []
         differences_ls = []
@@ -146,7 +150,10 @@ if __name__ == '__main__':
         i = 0
         population_error = 0
         while i < max_iter_number:
-            u = u_init + np.random.normal(scale=magnitude * np.abs(u_init), size=u_init.shape)
+            if magnitude!= 0:
+                u = u_init + np.random.normal(scale=magnitude * np.abs(u_init), size=u_init.shape)
+            else:
+                u = u_init
             epde_search_obj = epde_alg.EpdeSearch(use_solver=False, boundary=boundary,
                                                    dimensionality=dimensionality, coordinate_tensors=grids)
 
@@ -170,7 +177,7 @@ if __name__ == '__main__':
                 epde_search_obj.fit(data=u, max_deriv_order=(1, 3),
                                     equation_terms_max_number=4, equation_factors_max_number=2,
                                     eq_sparsity_interval=(1e-08, 1e-06), derivs=[derivs],
-                                    additional_tokens=[custom_trig_tokens, ])
+                                    additional_tokens=[custom_trig_tokens, ], mmf=mmf)
             except Exception as e:
                 logging.error(traceback.format_exc())
                 population_error += 1
@@ -180,6 +187,7 @@ if __name__ == '__main__':
             time1 = end-start
 
             res = epde_search_obj.equation_search_results(only_print=False, num=2)
+
             difference_ls = find_coeff_diff(res)
 
             if len(difference_ls) != 0:
@@ -226,20 +234,6 @@ if __name__ == '__main__':
     plt.title("SymNet")
     plt.plot(magnitudes, draw_not_found, linewidth=2, markersize=9, marker='o')
     plt.ylabel("No. runs with not found eq.")
-    plt.xlabel("Magnitude value")
-    plt.grid()
-    plt.show()
-
-    plt.plot(magnitudes, draw_time, linewidth=2, markersize=9, marker='o')
-    plt.title("SymNet")
-    plt.ylabel("Time, s.")
-    plt.xlabel("Magnitude value")
-    plt.grid()
-    plt.show()
-
-    plt.plot(magnitudes, draw_avgmae, linewidth=2, markersize=9, marker='o')
-    plt.title("SymNet")
-    plt.ylabel("Average MAE")
     plt.xlabel("Magnitude value")
     plt.grid()
     plt.show()

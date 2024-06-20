@@ -2,7 +2,7 @@ import matplotlib.colors
 import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
-from drawbase.read_compile_df import _round_values, read_csv
+from drawbase.read_compile_df_tuned import _round_values, read_csv, _round_if_many
 
 import os
 from pathlib import Path
@@ -11,17 +11,21 @@ sns.set(style="whitegrid", color_codes=True)
 
 path = 'data_kdv/'
 path = str(os.path.join(Path().absolute().parent, path))
-names = ["0", "0.001", "0.01", "0.07", "0.08", "0.09", "0.092"]
-n_df = 2
+names = ["0", "0.023", "0.046", "0.069", "0.092"]
+n_df = 3
 decimals = 4
 
 df_ls = read_csv(path, names, n_df)
 categories, df_lsr = _round_values(df_ls, decimals=decimals)
+
+
 categories = categories[np.argsort(categories)]
 categories = categories[:len(categories)-1]
+# categories_trimmed = _round_if_many(categories)
 
-core_values = [1.2e-05, 1.0e-04, 1.0e-03, 1.4e-03]
-core_colors = ["#385623", "#669D41", "#A8D08D", "#E2EFD9"]
+categories_string = [str(el) for el in categories]
+core_values = [1e-05, 5e-05, 0.0001, 0.0009, 1.4e-03]
+core_colors = ["#385623", "#538135", "#669D41", "#89BF65", "#C5E0B3"]
 
 categories_log = np.log(categories)
 core_values_log = np.log(core_values)

@@ -1,7 +1,7 @@
 import time
 import numpy as np
 import pandas as pd
-import classic_alg_exp.epde.interface.interface as epde_alg
+import epde.interface.interface as epde_alg
 import matplotlib.pyplot as plt
 from matplotlib import rcParams
 import traceback
@@ -100,15 +100,16 @@ if __name__ == '__main__':
     coefficients[1] = 0.
 
     ''' Parameters of the experiment '''
-    write_csv = False
+    write_csv = True
     print_results = True
     max_iter_number = 50
-    magnitudes = [1. * 1e-2]
+    magnitudes = [0, 8.675e-6, 1.735e-5, 2.6025e-5, 3.47e-5]
 
     draw_not_found = []
     draw_time = []
     draw_avgmae = []
     start_gl = time.time()
+    not_found_ls = []
     for magnitude in magnitudes:
         title = f'dfo{magnitude}'
 
@@ -120,7 +121,10 @@ if __name__ == '__main__':
         i = 0
         population_error = 0
         while i < max_iter_number:
-            u = u_init + np.random.normal(scale=magnitude * np.abs(u_init), size=u_init.shape)
+            if magnitude != 0:
+                u = u_init + np.random.normal(scale=magnitude * np.abs(u_init), size=u_init.shape)
+            else:
+                u = u_init
             epde_search_obj = epde_alg.EpdeSearch(use_solver=False, boundary=boundary,
                                                   dimensionality=dimensionality, coordinate_tensors=grids,
                                                   prune_domain=False)
@@ -155,6 +159,7 @@ if __name__ == '__main__':
             i += 1
             time_ls.append(time1)
 
+        not_found_ls.append(num_found_eq.count(0))
         if write_csv:
             arr = np.array([differences_ls_none, time_ls, num_found_eq])
             arr = arr.T
@@ -182,24 +187,26 @@ if __name__ == '__main__':
         draw_time.append(sum(time_ls) / len(time_ls))
 
     end_gl = time.time()
-    print(f"Overall time: {end_gl - start_gl:.2f}, s.")
-    plt.title("SymNet")
-    plt.plot(magnitudes, draw_not_found, linewidth=2, markersize=9, marker='o')
-    plt.ylabel("No. runs with not found eq.")
-    plt.xlabel("Magnitude value")
-    plt.grid()
-    plt.show()
-
-    plt.plot(magnitudes, draw_time, linewidth=2, markersize=9, marker='o')
-    plt.title("SymNet")
-    plt.ylabel("Time, s.")
-    plt.xlabel("Magnitude value")
-    plt.grid()
-    plt.show()
-
-    plt.plot(magnitudes, draw_avgmae, linewidth=2, markersize=9, marker='o')
-    plt.title("SymNet")
-    plt.ylabel("Average MAE")
-    plt.xlabel("Magnitude value")
-    plt.grid()
-    plt.show()
+    print(f"Overall time: {(end_gl - start_gl) / 3600:.2f}, h.")
+    print(f"Runs where eq was not found for each magn: {not_found_ls}")
+    # print(f"Overall time: {end_gl - start_gl:.2f}, s.")
+    # plt.title("Original")
+    # plt.plot(magnitudes, draw_not_found, linewidth=2, markersize=9, marker='o')
+    # plt.ylabel("No. runs with not found eq.")
+    # plt.xlabel("Magnitude value")
+    # plt.grid()
+    # plt.show()
+    #
+    # plt.plot(magnitudes, draw_time, linewidth=2, markersize=9, marker='o')
+    # plt.title("Original")
+    # plt.ylabel("Time, s.")
+    # plt.xlabel("Magnitude value")
+    # plt.grid()
+    # plt.show()
+    #
+    # plt.plot(magnitudes, draw_avgmae, linewidth=2, markersize=9, marker='o')
+    # plt.title("Original")
+    # plt.ylabel("Average MAE")
+    # plt.xlabel("Magnitude value")
+    # plt.grid()
+    # plt.show()

@@ -8,6 +8,7 @@ import traceback
 import logging
 import os
 from pathlib import Path
+import pickle
 rcParams.update({'figure.autolayout': True})
 
 
@@ -100,17 +101,22 @@ if __name__ == '__main__':
     coefficients[1] = 0.
 
     ''' Parameters of the experiment '''
-    write_csv = False
+    write_csv = True
     print_results = True
     max_iter_number = 50
-    magnitudes = [1. * 1e-2]
+    eq_type = "data_wave"
+    magnitudes = [0, 8.675e-6, 1.735e-5, 2.6025e-5, 3.47e-5]
+    magnames = ["0", "8.675e-6", "1.735e-5", "2.6025e-5", "3.47e-5"]
+    mmfs = [1.1, 1.0, 1.0, 1.0, 1.0]
 
     draw_not_found = []
     draw_time = []
     draw_avgmae = []
     start_gl = time.time()
-    for magnitude in magnitudes:
-        title = f'dfs{magnitude}'
+    not_found_ls = []
+
+    for magnitude, magname, mmf in zip(magnitudes, magnames, mmfs):
+        title = f'dfs{magname}'
 
         time_ls = []
         differences_ls = []
@@ -120,7 +126,10 @@ if __name__ == '__main__':
         i = 0
         population_error = 0
         while i < max_iter_number:
-            u = u_init + np.random.normal(scale=magnitude * np.abs(u_init), size=u_init.shape)
+            if magnitude != 0:
+                u = u_init + np.random.normal(scale=magnitude * np.abs(u_init), size=u_init.shape)
+            else:
+                u = u_init
             epde_search_obj = epde_alg.EpdeSearch(use_solver=False, boundary=boundary,
                                                   dimensionality=dimensionality, coordinate_tensors=grids,
                                                   prune_domain=False)
@@ -130,7 +139,7 @@ if __name__ == '__main__':
             try:
                 epde_search_obj.fit(data=u, max_deriv_order=(2, 2),
                                     equation_terms_max_number=3, equation_factors_max_number=1,
-                                    eq_sparsity_interval=(1e-08, 5))
+                                    eq_sparsity_interval=(1e-08, 5), mmf=mmf)
             except Exception as e:
                 logging.error(traceback.format_exc())
                 population_error += 1
@@ -140,14 +149,21 @@ if __name__ == '__main__':
             time1 = end-start
 
             res = epde_search_obj.equation_search_results(only_print=False, num=2)
+
+            # path_exp = os.path.join(Path().absolute().parent, eq_type, "equations", f"{title}_{i}.pickle")
+            # with open(path_exp, "wb") as f:
+            #     pickle.dump(res, f)
+
             difference_ls = find_coeff_diff(res, coefficients)
 
             if len(difference_ls) != 0:
                 differences_ls.append(min(difference_ls))
                 differences_ls_none.append(min(difference_ls))
                 mean_diff_ls += difference_ls
+                print(f"Num. eq. found: {len(difference_ls)}")
             else:
                 differences_ls_none.append(None)
+                print(f"Num. eq. found: 0")
 
             num_found_eq.append(len(difference_ls))
             print('Overall time is:', time1)
@@ -155,6 +171,7 @@ if __name__ == '__main__':
             i += 1
             time_ls.append(time1)
 
+        not_found_ls.append(num_found_eq.count(0))
         if write_csv:
             arr = np.array([differences_ls_none, time_ls, num_found_eq])
             arr = arr.T
@@ -182,24 +199,5 @@ if __name__ == '__main__':
         draw_time.append(sum(time_ls) / len(time_ls))
 
     end_gl = time.time()
-    print(f"Overall time: {end_gl - start_gl:.2f}, s.")
-    plt.title("SymNet")
-    plt.plot(magnitudes, draw_not_found, linewidth=2, markersize=9, marker='o')
-    plt.ylabel("No. runs with not found eq.")
-    plt.xlabel("Magnitude value")
-    plt.grid()
-    plt.show()
-
-    plt.plot(magnitudes, draw_time, linewidth=2, markersize=9, marker='o')
-    plt.title("SymNet")
-    plt.ylabel("Time, s.")
-    plt.xlabel("Magnitude value")
-    plt.grid()
-    plt.show()
-
-    plt.plot(magnitudes, draw_avgmae, linewidth=2, markersize=9, marker='o')
-    plt.title("SymNet")
-    plt.ylabel("Average MAE")
-    plt.xlabel("Magnitude value")
-    plt.grid()
-    plt.show()
+    print(f"Overall time: {(end_gl - start_gl) / 3600:.2f}, h.")
+    print(f"Runs where eq was not found for each magn: {not_found_ls}")

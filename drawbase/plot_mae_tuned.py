@@ -3,12 +3,14 @@ import matplotlib.colors
 import matplotlib as mpl
 import seaborn as sns
 import numpy as np
-from drawbase.read_compile_df import read_compile_mae_df
+from drawbase.read_compile_df_tuned import read_compile_mae_df
 from drawbase.preprocess_df_tuned import melt_count_mae
+import re
 sns.set(style="whitegrid", color_codes=True)
 
 
 def plot_mae(path, names, core_values, core_colors, decimals, n_df, log_transform=False):
+    # fig = plt.figure(dpi=200)
     count_ls = read_compile_mae_df(path, names, decimals=decimals, n_df=n_df)
     dfall = melt_count_mae(count_ls)
 
@@ -30,10 +32,12 @@ def plot_mae(path, names, core_values, core_colors, decimals, n_df, log_transfor
     # hatches = ['-', '+', 'x', '\\', '*', 'o']
     for j, thisbar in enumerate(ax.patches):
         thisbar._facecolor = tuple(color_dict.get(color_keys[j]))
-        if idxs[j] == "Modified":
+        if idxs[j] == "Modified, mf=2.4":
             thisbar.set_hatch("\\")
         elif idxs[j] == "Pysindy":
             thisbar.set_hatch("-")
+        elif idxs[j] == "Modified, tuned mf":
+            thisbar.set_hatch("x")
 
     keys_sm = list(color_dict.keys())[:len(color_dict) - 1] # listed
     vals_sm = list(color_dict.values())[:len(color_dict) - 1] # colors
@@ -44,6 +48,7 @@ def plot_mae(path, names, core_values, core_colors, decimals, n_df, log_transfor
 
     sm = plt.cm.ScalarMappable(cmap=cmap_sm, norm=norm_sm)
     sm.set_array([])
+    keys_sm = _process_keys(keys_sm)
     cbar = plt.colorbar(sm, ticks=keys_sm, boundaries=bounds)
 
     locations = []
@@ -55,19 +60,35 @@ def plot_mae(path, names, core_values, core_colors, decimals, n_df, log_transfor
     n = []
     for i in range(len(dfall.Name.unique())):
         if i == 2:
-            n.append(ax.bar(0, 0, color="#BFBFBF", hatch="-", edgecolor="k"))
+            n.append(ax.bar(0, 0, color="#BFBFBF", hatch="x", edgecolor="k"))
         elif i == 1:
             n.append(ax.bar(0, 0, color="#BFBFBF", hatch="\\", edgecolor="k"))
+        elif i == 3:
+            n.append(ax.bar(0, 0, color="#BFBFBF", hatch="-", edgecolor="k"))
         else:
             n.append(ax.bar(0, 0, color="#BFBFBF", edgecolor="k"))
 
-    plt.legend(n, dfall.Name.unique(), loc=[0.83, 0.84])
+    plt.legend(n, dfall.Name.unique(), loc=[0.7, 0.77])
     plt.setp(ax.get_legend().get_texts(), fontsize='24')
     ax.set_ylabel("No. of runs", fontsize=24)
     ax.set_xlabel("Magnitude", fontsize=24)
     plt.xticks(fontsize=24, rotation=0)
     plt.yticks(fontsize=24)
     plt.show()
+
+
+def _process_keys(keys_sm):
+    keys_str = [str(key) for key in keys_sm]
+    new_keys = []
+    for key in keys_str:
+        if len(key) < 10:
+            new_keys.append(float(key))
+        else:
+            key1 = re.sub("0+\de-", "e-", key)
+            if re.search("\.e-", key1) is not None:
+                key1 = key[:2] + "0" + key[-4:]
+            new_keys.append(float(key1))
+    return new_keys
 
 
 def _create_cmap(core_values, core_colors, count_ls, log_transform, plot_map=False):

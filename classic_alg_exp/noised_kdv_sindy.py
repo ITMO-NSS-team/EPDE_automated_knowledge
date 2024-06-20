@@ -1,7 +1,7 @@
 import time
 import numpy as np
 import pandas as pd
-import classic_alg_exp.epde.interface.interface as epde_alg
+import epde.interface.interface as epde_alg
 from kdv_init_distrib_sindy import coefficients1, coefficients2
 from scipy.io import loadmat
 import traceback
@@ -112,7 +112,7 @@ if __name__ == '__main__':
     draw_time = []
     draw_avgmae = []
     start_gl = time.time()
-    magnitudes = [1. * 1e-5, 3.5 * 1e-5, 5.5 * 1e-5, 8. * 1e-5, 2.26 * 1e-4]
+    magnitudes = [0, 2e-5, 4e-5, 6e-5, 8. * 1e-5]
     for magnitude in magnitudes:
         title = f'dfo{magnitude}'
 
@@ -124,7 +124,10 @@ if __name__ == '__main__':
         i = 0
         population_error = 0
         while i < max_iter_number:
-            u = u_init + np.random.normal(scale=magnitude * np.abs(u_init), size=u_init.shape)
+            if magnitude != 0:
+                u = u_init + np.random.normal(scale=magnitude * np.abs(u_init), size=u_init.shape)
+            else:
+                u = u_init
             epde_search_obj = epde_alg.EpdeSearch(use_solver=False, boundary=boundary,
                                                    dimensionality=dimensionality, coordinate_tensors=grids)
 
@@ -186,7 +189,7 @@ if __name__ == '__main__':
 
     end_gl = time.time()
     print(f"Overall time: {end_gl - start_gl:.2f}, s.")
-    plt.title("SymNet")
+    plt.title("Original")
     plt.plot(magnitudes, draw_not_found, linewidth=2, markersize=9, marker='o')
     plt.ylabel("No. runs with not found eq.")
     plt.xlabel("Magnitude value")
@@ -194,14 +197,14 @@ if __name__ == '__main__':
     plt.show()
 
     plt.plot(magnitudes, draw_time, linewidth=2, markersize=9, marker='o')
-    plt.title("SymNet")
+    plt.title("Original")
     plt.ylabel("Time, s.")
     plt.xlabel("Magnitude value")
     plt.grid()
     plt.show()
 
     plt.plot(magnitudes, draw_avgmae, linewidth=2, markersize=9, marker='o')
-    plt.title("SymNet")
+    plt.title("Original")
     plt.ylabel("Average MAE")
     plt.xlabel("Magnitude value")
     plt.grid()

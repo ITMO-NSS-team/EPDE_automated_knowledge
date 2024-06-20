@@ -1,47 +1,54 @@
 import numpy as np
 from scipy.io import loadmat
-import matplotlib.pyplot as plt
+import time
 import pandas as pd
 import pysindy as ps
-import time
 import warnings
 import os
 from pathlib import Path
+import matplotlib.pyplot as plt
 from pysindy_calc_mae import calc_difference
-import pickle
 warnings.filterwarnings("ignore", category=UserWarning)
 
 
 np.random.seed(100)
 integrator_keywords = {'rtol': 1e-12, 'method': 'LSODA', 'atol': 1e-12}
 
-path_full = os.path.join(Path().absolute().parent, "data_kdv", "kdv.mat")
-kdV = loadmat(path_full)
-t = np.ravel(kdV['t'])
-x = np.ravel(kdV['x'])
-u_init = np.real(kdV['usol'])
+
+path_full = os.path.join(Path().absolute().parent, "data_burg", "burgers_sln_100.csv")
+df = pd.read_csv(path_full, header=None)
+u_init= df.values
+# u_init = np.transpose(u_init)
+x = np.linspace(-1000, 0, 101)
+t = np.linspace(0, 1, 101)
 u_init = u_init.reshape(len(x), len(t), 1)
+
+# path_full = os.path.join(Path().absolute().parent, "data_burg", "burgers.mat")
+# burg = loadmat(path_full)
+# t = np.ravel(burg['t'])
+# x = np.ravel(burg['x'])
+# u_init = np.real(burg['usol'])
+# u_init = u_init.reshape(len(x), len(t), 1)
 
 dt = t[1] - t[0]
 dx = x[1] - x[0]
 
-library_functions = [lambda x: x, lambda x: x * x]#, lambda x: np.cos(x)*np.cos(x)]#, lambda x: 1/x]
-library_function_names = [lambda x: x, lambda x: x + x]#, lambda x: 'cos(' +x+ ')'+'sin(' +x+ ')']#, lambda x: '1/'+x]
-true_coef = [-1, -6]
-true_names = ["x0_111", "x0x0_1"]
+library_functions = [lambda x: x, lambda x: x * x]
+library_function_names = [lambda x: x, lambda x: x + x]
+true_coef = [1.]
+true_names = ["x0x0_1"]
 
 ''' Parameters of the experiment '''
-iter_number = 50
+iter_number = 1
+write_csv = False
 print_results = True
-write_csv = True
-eq_type = "data_pysindy_kdv"
 
+draw_not_found = []
 draw_time = []
 draw_mae = []
-draw_not_found = []
 
-magnitudes = [0, 2e-5, 4e-5, 6e-5, 8. * 1e-5]
-magnames = ["0", "2e-5", "4e-5", "6e-5", "8e-5"]
+magnitudes = [0, 9.175e-6, 1.835e-5, 2.7525e-5, 3.67 * 1e-5]
+magnames = ["0", "9.175e-6", "1.835e-5", "2.7525e-5", "3.67e-5"]
 
 for magnitude, magname in zip(magnitudes, magnames):
     title = f"dfp{magname}"
@@ -56,28 +63,24 @@ for magnitude, magname in zip(magnitudes, magnames):
         start = time.time()
         pde_lib = ps.PDELibrary(library_functions=library_functions,
                                 function_names=library_function_names,
-                                derivative_order=3, spatial_grid=x,
-                                include_bias=True, is_uniform=True, include_interaction=True)
-        feature_library = ps.feature_library.PolynomialLibrary(degree=3)
-        optimizer = ps.SR3(threshold=7, max_iter=10000, tol=1e-15, nu=1e2,
-                           thresholder='l0', normalize_columns=True)
+                                derivative_order=2, spatial_grid=x,
+                                include_bias=False, is_uniform=True, include_interaction=True)
+
+        # optimizer = ps.STLSQ(threshold=2, alpha=1e-5, normalize_columns=True)
+        optimizer = ps.SSR(alpha=1e-3, normalize_columns=True)
+
         model = ps.SINDy(feature_library=pde_lib, optimizer=optimizer)
         model.fit(u, t=dt)
         end = time.time()
         time1 = end-start
         time_ls.append(time1)
+        model.print()
 
         eq = model.equations(17)
-
-        # path_exp = os.path.join(Path().absolute().parent, eq_type, "equations", f"{title}_{i}.pickle")
-        # with open(path_exp, "wb") as f:
-        #     pickle.dump(eq, f)
-
         mae, found_flag = calc_difference(eq[0], true_coef, true_names)
         mae_ls.append(mae)
 
         found_ls.append(found_flag)
-        model.print(precision=6)
 
     arr = np.array([mae_ls, time_ls, found_ls])
     arr = arr.T
@@ -90,7 +93,7 @@ for magnitude, magname in zip(magnitudes, magnames):
         arr = np.array([mae_ls, time_ls, found_ls])
         arr = arr.T
         df = pd.DataFrame(data=arr, columns=["MAE", 'time', "found"])
-        df.to_csv(os.path.join(Path().absolute().parent, "data_kdv_sindy", f"{title}.csv"))
+        df.to_csv(os.path.join(Path().absolute().parent, "data_burg", f"{title}.csv"))
     if print_results:
         print(f"Average time, s: {sum(time_ls) / iter_number:.2f}")
         print(f"Average min MAE: {df.MAE.mean():.2f}")
@@ -102,4 +105,5 @@ plt.ylabel("No. runs with not found eq.")
 plt.xlabel("Magnitude value")
 plt.grid()
 plt.show()
+
 
